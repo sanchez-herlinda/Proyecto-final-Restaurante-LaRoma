@@ -6,7 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/menu_provider.dart';
 import '../../models/platillo_model.dart';
 import '../menu/categorias_view.dart';
-import '../menu/detalle_platillo_view.dart';
+import '../menu/detalle_platillo_view.dart'; // 🔴 Apunta a la vista de flechas original
 import '../perfil/cuenta_view.dart';
 
 class HomeView extends StatefulWidget {
@@ -19,11 +19,28 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   String _busqueda = '';
 
+  // Controlador para el Carrusel de Imágenes
+  final PageController _pageController = PageController(viewportFraction: 0.9);
+
+  // URLs de ejemplo para el carrusel
+  final List<String> _imagenesCarrusel = [
+    'https://raw.githubusercontent.com/sanchez-herlinda/Imagenes_para_Flutter_6J-11-Feb-2026/refs/heads/main/calzone.png',
+    'https://raw.githubusercontent.com/sanchez-herlinda/Imagenes_para_Flutter_6J-11-Feb-2026/refs/heads/main/focc.png',
+    'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&q=80&w=1000',
+    'https://raw.githubusercontent.com/sanchez-herlinda/Imagenes_para_Flutter_6J-11-Feb-2026/refs/heads/main/gelato.png',
+    'https://raw.githubusercontent.com/sanchez-herlinda/Imagenes_para_Flutter_6J-11-Feb-2026/refs/heads/main/pizza1.png',
+  ];
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final menuState = context.watch<MenuProvider>().menuState;
 
-    // 🔴 FILTRAMOS LA LISTA GLOBAL SEGÚN EL BUSCADOR
     final platillosFiltrados = menuState.data?.where((platillo) {
           return platillo.nombre
               .toLowerCase()
@@ -37,7 +54,6 @@ class _HomeViewState extends State<HomeView> {
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () {
-            // Abre la vista de Categorías
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CategoriasView()),
@@ -58,75 +74,138 @@ class _HomeViewState extends State<HomeView> {
                 context,
                 MaterialPageRoute(builder: (context) => const CuentaView()),
               );
-              // Navegar al perfil
             },
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // --- BUSCADOR FUNCIONAL ---
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.backgroundBeige.withValues(alpha: 0.5),
-                border: Border.all(color: AppColors.textDark),
-              ),
-              child: TextField(
-                onChanged: (valor) {
-                  setState(() {
-                    _busqueda = valor;
-                  });
-                },
-                decoration: const InputDecoration(
-                  hintText: 'Buscar platillo...',
-                  prefixIcon:
-                      Icon(CupertinoIcons.search, color: AppColors.textDark),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 14),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundBeige.withValues(alpha: 0.5),
+                  border: Border.all(color: AppColors.textDark),
+                ),
+                child: TextField(
+                  onChanged: (valor) {
+                    setState(() {
+                      _busqueda = valor;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar platillo...',
+                    prefixIcon:
+                        Icon(CupertinoIcons.search, color: AppColors.textDark),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
               ),
             ),
           ),
 
-          // --- LISTA DE PLATILLOS ---
-          Expanded(
-            child: menuState.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                        color: AppColors.primaryBrown))
-                : platillosFiltrados.isEmpty
-                    ? const Center(
-                        child: Text('No se encontró ningún platillo.'))
-                    : GridView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+          // Carrusel (Se oculta si el usuario empieza a escribir en el buscador)
+          if (_busqueda.isEmpty)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 200,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _imagenesCarrusel.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          )
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: CachedNetworkImage(
+                          imageUrl: _imagenesCarrusel[index],
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) =>
+                              const Center(child: CupertinoActivityIndicator()),
+                          errorWidget: (context, url, error) => Container(
+                              color: AppColors.backgroundBeige,
+                              child: const Icon(Icons.error)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          if (_busqueda.isEmpty)
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+          SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text(
+                _busqueda.isEmpty ? 'Nuestro Menú' : 'Resultados de búsqueda',
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Times New Roman'),
+              ),
+            ),
+          ),
+
+          menuState.isLoading
+              ? const SliverToBoxAdapter(
+                  child: Center(
+                      child: Padding(
+                  padding: EdgeInsets.all(40.0),
+                  child:
+                      CircularProgressIndicator(color: AppColors.primaryBrown),
+                )))
+              : platillosFiltrados.isEmpty
+                  ? const SliverToBoxAdapter(
+                      child: Center(
+                          child: Padding(
+                      padding: EdgeInsets.all(40.0),
+                      child: Text('No se encontró ningún platillo.'),
+                    )))
+                  : SliverPadding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount:
-                              2, // Dos columnas como en tu diseño inicial
+                          crossAxisCount: 2,
                           childAspectRatio: 0.75,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
                         ),
-                        itemCount: platillosFiltrados.length,
-                        itemBuilder: (context, index) {
-                          return _buildPlatilloCard(
-                              context, platillosFiltrados[index]);
-                        },
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildPlatilloCard(
+                              context, platillosFiltrados[index]),
+                          childCount: platillosFiltrados.length,
+                        ),
                       ),
-          ),
+                    ),
+
+          const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
     );
   }
 
-  // Widget para las tarjetas de platillos
   Widget _buildPlatilloCard(BuildContext context, Platillo platillo) {
     return GestureDetector(
       onTap: () {
-        // Navegar a la pantalla de detalle
+        // 🔴 NAVEGAR A LA VISTA ORIGINAL CON FLECHAS
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -144,14 +223,17 @@ class _HomeViewState extends State<HomeView> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: CachedNetworkImage(
-                imageUrl: platillo.imagenUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) =>
-                    const Center(child: CupertinoActivityIndicator()),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey.shade300,
-                  child: const Icon(Icons.fastfood, color: Colors.grey),
+              child: Hero(
+                tag: platillo.id,
+                child: CachedNetworkImage(
+                  imageUrl: platillo.imagenUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CupertinoActivityIndicator()),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.fastfood, color: Colors.grey),
+                  ),
                 ),
               ),
             ),

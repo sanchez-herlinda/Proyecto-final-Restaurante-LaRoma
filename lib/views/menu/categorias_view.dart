@@ -8,13 +8,9 @@ class CategoriasView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Agregamos íconos representativos para cada categoría para mejorar la UI
     final List<Map<String, dynamic>> categoriasInfo = [
       {'nombre': 'Aperitivos', 'icono': Icons.tapas},
-      {
-        'nombre': 'Primeros',
-        'icono': Icons.ramen_dining
-      }, // Alternativa a pasta
+      {'nombre': 'Primeros', 'icono': Icons.ramen_dining},
       {'nombre': 'Segundos', 'icono': Icons.set_meal},
       {'nombre': 'Guarniciones', 'icono': Icons.eco},
       {'nombre': 'Postres', 'icono': Icons.cake},
@@ -26,8 +22,7 @@ class CategoriasView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: AppColors.white,
         leading: IconButton(
-          icon: const Icon(CupertinoIcons
-              .xmark), // Una tachita se ve más elegante para cerrar
+          icon: const Icon(CupertinoIcons.xmark),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('La ROMA',
@@ -57,6 +52,7 @@ class CategoriasView extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: categoriasInfo.length,
               itemBuilder: (context, index) {
+                final categoria = categoriasInfo[index]['nombre'];
                 return Card(
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 12),
@@ -77,7 +73,7 @@ class CategoriasView extends StatelessWidget {
                           color: AppColors.primaryBrown),
                     ),
                     title: Text(
-                      categoriasInfo[index]['nombre'],
+                      categoria,
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -86,11 +82,12 @@ class CategoriasView extends StatelessWidget {
                     trailing: const Icon(CupertinoIcons.chevron_right,
                         size: 20, color: AppColors.textDark),
                     onTap: () {
+                      // 🔴 AQUÍ ESTÁ LA CORRECCIÓN: usamos nombreCategoria
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => CategoriaFiltradaView(
-                              nombreCategoria: categoriasInfo[index]['nombre']),
+                          builder: (context) =>
+                              CategoriaFiltradaView(nombreCategoria: categoria),
                         ),
                       );
                     },

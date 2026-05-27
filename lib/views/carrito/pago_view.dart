@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 🔴 IMPORTANTE PARA LAS RESTRICCIONES
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/carrito_provider.dart';
@@ -25,6 +26,12 @@ class _PagoViewState extends State<PagoView> {
     final authState = context.watch<AuthProvider>().authState;
     final userId = authState.data?.id ?? '';
 
+    // 🔴 DESGLOSE REAL DE PAGOS
+    final double subtotal = carrito.total;
+    // Si es recoger en tienda podría ser 0, pero asumamos un costo de envío fijo de base de datos
+    final double costoEnvio = 35.00;
+    final double totalFinal = subtotal + costoEnvio;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundBeige,
       appBar: AppBar(
@@ -40,7 +47,6 @@ class _PagoViewState extends State<PagoView> {
                 padding: const EdgeInsets.all(24),
                 child: Consumer<PerfilProvider>(
                   builder: (context, perfil, child) {
-                    // Resolución segura para que DropdownButton no rompa si cambia la lista
                     Direccion? direccionSegura =
                         perfil.direcciones.contains(_direccionSeleccionada)
                             ? _direccionSeleccionada
@@ -65,6 +71,8 @@ class _PagoViewState extends State<PagoView> {
                                 .displayLarge
                                 ?.copyWith(fontSize: 24)),
                         const Divider(color: AppColors.textDark),
+
+                        // Direcciones
                         const Text('Enviar a:',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
@@ -79,13 +87,11 @@ class _PagoViewState extends State<PagoView> {
                                   return DropdownMenuItem(
                                       value: dir,
                                       child: Text(
-                                          "${dir.alias}: ${dir.calleYNumero}"));
+                                          "${dir.alias}: ${dir.calleYNumero}",
+                                          overflow: TextOverflow.ellipsis));
                                 }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _direccionSeleccionada = val;
-                                  });
-                                },
+                                onChanged: (val) => setState(
+                                    () => _direccionSeleccionada = val),
                               ),
                             ),
                             IconButton(
@@ -97,6 +103,8 @@ class _PagoViewState extends State<PagoView> {
                           ],
                         ),
                         const SizedBox(height: 20),
+
+                        // Tarjetas
                         const Text('Pagar con:',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
@@ -112,11 +120,8 @@ class _PagoViewState extends State<PagoView> {
                                       value: card,
                                       child: Text(card.numeroOculto));
                                 }).toList(),
-                                onChanged: (val) {
-                                  setState(() {
-                                    _tarjetaSeleccionada = val;
-                                  });
-                                },
+                                onChanged: (val) =>
+                                    setState(() => _tarjetaSeleccionada = val),
                               ),
                             ),
                             IconButton(
@@ -129,6 +134,8 @@ class _PagoViewState extends State<PagoView> {
                         ),
                         const SizedBox(height: 20),
                         const Divider(color: AppColors.textDark),
+
+                        // Platillos
                         ...carrito.items.map((item) => Padding(
                               padding:
                                   const EdgeInsets.symmetric(vertical: 4.0),
@@ -137,21 +144,47 @@ class _PagoViewState extends State<PagoView> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                      '${item.cantidad}x ${item.platillo.nombre}'),
-                                  Text('\$${item.subtotal.toInt()}')
+                                      '${item.cantidad}x ${item.platillo.nombre}',
+                                      style: const TextStyle(fontSize: 12)),
+                                  Text('\$${item.subtotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 12))
                                 ],
                               ),
                             )),
                         const Divider(color: AppColors.textDark),
+
+                        // 🔴 DESGLOSE DETALLADO
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Subtotal:',
+                                style: TextStyle(color: Colors.grey)),
+                            Text('\$${subtotal.toStringAsFixed(2)}',
+                                style: const TextStyle(color: Colors.grey))
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Costo de envío:',
+                                style: TextStyle(color: Colors.grey)),
+                            Text('\$${costoEnvio.toStringAsFixed(2)}',
+                                style: const TextStyle(color: Colors.grey))
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Total:',
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 18)),
-                            Text('\$${carrito.total.toInt()}',
+                            Text('\$${totalFinal.toStringAsFixed(2)}',
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 18)),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: AppColors.primaryBrown)),
                           ],
                         ),
                       ],
@@ -162,7 +195,6 @@ class _PagoViewState extends State<PagoView> {
             ),
             const SizedBox(height: 20),
             Consumer<PerfilProvider>(builder: (context, perfil, child) {
-              // Validación para habilitar o deshabilitar el botón
               bool canPay =
                   perfil.direcciones.isNotEmpty && perfil.tarjetas.isNotEmpty;
               return ElevatedButton(
@@ -170,9 +202,8 @@ class _PagoViewState extends State<PagoView> {
                     ? () => _confirmarPago(context, userId, carrito)
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryBrown,
-                  disabledBackgroundColor: Colors.grey,
-                ),
+                    backgroundColor: AppColors.primaryBrown,
+                    disabledBackgroundColor: Colors.grey),
                 child: const Text('Confirmar y pagar orden'),
               );
             }),
@@ -200,7 +231,9 @@ class _PagoViewState extends State<PagoView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _crearInput(aliasCtrl, 'Alias (Ej: Casa)', Icons.bookmark_border),
+              // 🔴 RESTRICCIÓN: Máximo 20 caracteres para el Alias
+              _crearInput(aliasCtrl, 'Alias (Ej: Casa)', Icons.bookmark_border,
+                  formatters: [LengthLimitingTextInputFormatter(20)]),
               const SizedBox(height: 10),
               _crearInput(
                   calleCtrl, 'Calle y Número', Icons.location_on_outlined),
@@ -210,9 +243,14 @@ class _PagoViewState extends State<PagoView> {
               Row(
                 children: [
                   Expanded(
+                      // 🔴 RESTRICCIÓN: Solo números y exactamente 5 dígitos para C.P.
                       child: _crearInput(
                           cpCtrl, 'C.P.', Icons.markunread_mailbox_outlined,
-                          isNumber: true)),
+                          isNumber: true,
+                          formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(5),
+                      ])),
                 ],
               ),
               const SizedBox(height: 10),
@@ -231,7 +269,14 @@ class _PagoViewState extends State<PagoView> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
-              if (aliasCtrl.text.isEmpty || calleCtrl.text.isEmpty) {
+              // 🔴 VALIDACIÓN ESTRICTA
+              if (aliasCtrl.text.isEmpty ||
+                  calleCtrl.text.isEmpty ||
+                  cpCtrl.text.length < 5) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Revisa tus datos. El C.P. debe tener 5 dígitos.'),
+                    backgroundColor: AppColors.errorRed));
                 return;
               }
               final d = Direccion(
@@ -242,10 +287,7 @@ class _PagoViewState extends State<PagoView> {
                   codigoPostal: cpCtrl.text,
                   indicaciones: refCtrl.text);
               await context.read<PerfilProvider>().agregarDireccion(userId, d);
-
-              if (!context.mounted) {
-                return;
-              }
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             child: const Text('Guardar'),
@@ -272,22 +314,39 @@ class _PagoViewState extends State<PagoView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 🔴 RESTRICCIÓN: Solo letras para el titular (opcionalmente) o límite de longitud
               _crearInput(
-                  titularCtrl, 'Nombre del Titular', Icons.person_outline),
+                  titularCtrl, 'Nombre del Titular', Icons.person_outline,
+                  formatters: [LengthLimitingTextInputFormatter(40)]),
               const SizedBox(height: 10),
+              // 🔴 RESTRICCIÓN: Solo 16 números
               _crearInput(numeroCtrl, 'Número de Tarjeta', Icons.credit_card,
-                  isNumber: true),
+                  isNumber: true,
+                  formatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(16),
+                  ]),
               const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
-                      child: _crearInput(
-                          vencCtrl, 'MM/AA', Icons.calendar_today,
-                          isNumber: true)),
+                      // 🔴 RESTRICCIÓN: MM/AA o MMAA (4 dígitos)
+                      child: _crearInput(vencCtrl, 'MMAA', Icons.calendar_today,
+                          isNumber: true,
+                          formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ])),
                   const SizedBox(width: 10),
                   Expanded(
+                      // 🔴 RESTRICCIÓN: CVC 3 o 4 dígitos
                       child: _crearInput(cvcCtrl, 'CVC', Icons.lock_outline,
-                          isNumber: true, isPassword: true)),
+                          isNumber: true,
+                          isPassword: true,
+                          formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4), // Amex usa 4
+                      ])),
                 ],
               ),
             ],
@@ -304,26 +363,31 @@ class _PagoViewState extends State<PagoView> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
+              // 🔴 VALIDACIÓN ESTRICTA
               if (titularCtrl.text.isEmpty ||
-                  numeroCtrl.text.isEmpty ||
-                  cvcCtrl.text.isEmpty) {
+                  numeroCtrl.text.length < 15 ||
+                  vencCtrl.text.length < 4 ||
+                  cvcCtrl.text.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Tarjeta inválida. Revisa los campos.'),
+                    backgroundColor: AppColors.errorRed));
                 return;
               }
               String n = numeroCtrl.text.trim();
               final c = TarjetaBancaria(
                   id: '',
                   nombreTitular: titularCtrl.text,
-                  numeroOculto:
-                      '**** **** **** ${n.length >= 4 ? n.substring(n.length - 4) : n}',
+                  numeroOculto: '**** **** **** ${n.substring(n.length - 4)}',
                   numeroCompleto: n,
-                  fechaVencimiento: vencCtrl.text,
+                  fechaVencimiento:
+                      '${vencCtrl.text.substring(0, 2)}/${vencCtrl.text.substring(2)}', // Formateamos a MM/AA para guardarlo
                   cvc: cvcCtrl.text,
-                  tipo: n.startsWith('4') ? 'Visa' : 'Mastercard');
+                  tipo: n.startsWith('4')
+                      ? 'Visa'
+                      : (n.startsWith('5') ? 'Mastercard' : 'Amex'));
               await context.read<PerfilProvider>().agregarTarjeta(userId, c);
 
-              if (!context.mounted) {
-                return;
-              }
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             child: const Text('Guardar'),
@@ -333,13 +397,17 @@ class _PagoViewState extends State<PagoView> {
     );
   }
 
+  // 🔴 METODO ACTUALIZADO PARA ACEPTAR FORMATTERS
   Widget _crearInput(
       TextEditingController controller, String hint, IconData icon,
-      {bool isNumber = false, bool isPassword = false}) {
+      {bool isNumber = false,
+      bool isPassword = false,
+      List<TextInputFormatter>? formatters}) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       obscureText: isPassword,
+      inputFormatters: formatters, // Aquí aplicamos las restricciones
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon, color: AppColors.primaryBrown, size: 20),
@@ -361,17 +429,12 @@ class _PagoViewState extends State<PagoView> {
         builder: (context) => const Center(child: CircularProgressIndicator()));
     try {
       await carrito.procesarPago(userId);
-
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
       Navigator.pop(context);
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (context) => const PagoExitosoView()));
     } catch (e) {
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error: $e')));

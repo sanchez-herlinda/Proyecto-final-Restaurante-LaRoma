@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 🔴 IMPORTANTE PARA RESTRICCIONES
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -82,22 +83,39 @@ class MetodosPagoView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 🔴 RESTRICCIÓN: Máximo 40 caracteres para titular
               _crearInput(
-                  titularCtrl, 'Nombre del Titular', Icons.person_outline),
+                  titularCtrl, 'Nombre del Titular', Icons.person_outline,
+                  formatters: [LengthLimitingTextInputFormatter(40)]),
               const SizedBox(height: 10),
+              // 🔴 RESTRICCIÓN: Solo números y exactamente 16 dígitos
               _crearInput(numeroCtrl, 'Número de Tarjeta', Icons.credit_card,
-                  isNumber: true),
+                  isNumber: true,
+                  formatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(16),
+                  ]),
               const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
-                      child: _crearInput(
-                          vencCtrl, 'MM/AA', Icons.calendar_today,
-                          isNumber: true)),
+                      // 🔴 RESTRICCIÓN: Solo números y exactamente 4 dígitos (MMAA)
+                      child: _crearInput(vencCtrl, 'MMAA', Icons.calendar_today,
+                          isNumber: true,
+                          formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ])),
                   const SizedBox(width: 10),
                   Expanded(
+                      // 🔴 RESTRICCIÓN: Solo números y máximo 4 dígitos para CVC
                       child: _crearInput(cvcCtrl, 'CVC', Icons.lock_outline,
-                          isNumber: true, isPassword: true)),
+                          isNumber: true,
+                          isPassword: true,
+                          formatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ])),
                 ],
               ),
             ],
@@ -114,9 +132,14 @@ class MetodosPagoView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
+              // 🔴 VALIDACIÓN ESTRICTA DE LONGITUDES
               if (titularCtrl.text.isEmpty ||
-                  numeroCtrl.text.isEmpty ||
-                  cvcCtrl.text.isEmpty) {
+                  numeroCtrl.text.length < 15 ||
+                  vencCtrl.text.length < 4 ||
+                  cvcCtrl.text.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Tarjeta inválida. Revisa los campos.'),
+                    backgroundColor: AppColors.errorRed));
                 return;
               }
               String n = numeroCtrl.text.trim();
@@ -126,9 +149,12 @@ class MetodosPagoView extends StatelessWidget {
                   numeroOculto:
                       '**** **** **** ${n.length >= 4 ? n.substring(n.length - 4) : n}',
                   numeroCompleto: n,
-                  fechaVencimiento: vencCtrl.text,
+                  fechaVencimiento:
+                      '${vencCtrl.text.substring(0, 2)}/${vencCtrl.text.substring(2)}', // Formato a MM/AA
                   cvc: cvcCtrl.text,
-                  tipo: n.startsWith('4') ? 'Visa' : 'Mastercard');
+                  tipo: n.startsWith('4')
+                      ? 'Visa'
+                      : (n.startsWith('5') ? 'Mastercard' : 'Amex'));
               await context.read<PerfilProvider>().agregarTarjeta(userId, c);
 
               if (!context.mounted) {
@@ -143,13 +169,17 @@ class MetodosPagoView extends StatelessWidget {
     );
   }
 
+  // 🔴 METODO ACTUALIZADO PARA ACEPTAR FORMATTERS
   Widget _crearInput(
       TextEditingController controller, String hint, IconData icon,
-      {bool isNumber = false, bool isPassword = false}) {
+      {bool isNumber = false,
+      bool isPassword = false,
+      List<TextInputFormatter>? formatters}) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       obscureText: isPassword,
+      inputFormatters: formatters,
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon, color: AppColors.primaryBrown, size: 20),

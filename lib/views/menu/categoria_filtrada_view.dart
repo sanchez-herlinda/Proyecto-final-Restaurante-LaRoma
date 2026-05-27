@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/menu_provider.dart';
-import 'detalle_platillo_view.dart';
+// 🔴 CORRECCIÓN AQUÍ: Importamos el diseño PREMIUM
+import '../home/platillo_detalle_view.dart';
 
 class CategoriaFiltradaView extends StatefulWidget {
   final String nombreCategoria;
@@ -21,15 +22,13 @@ class _CategoriaFiltradaViewState extends State<CategoriaFiltradaView> {
   Widget build(BuildContext context) {
     final menuState = context.watch<MenuProvider>().menuState;
 
-    // 🔴 FILTRAMOS POR CATEGORÍA Y LUEGO POR LO QUE ESCRIBA EL USUARIO
-    // 🔴 FILTRAMOS POR CATEGORÍA Y LUEGO POR LO QUE ESCRIBA EL USUARIO
+    // FILTRAMOS POR CATEGORÍA Y LUEGO POR LO QUE ESCRIBA EL USUARIO
     final platillosFiltrados = menuState.data?.where((platillo) {
           final coincideCategoria = platillo.categoriaId.toLowerCase() ==
               widget.nombreCategoria.toLowerCase();
           final coincideBusqueda =
               platillo.nombre.toLowerCase().contains(_busqueda.toLowerCase());
 
-          // Usamos ambas variables para quitar la alerta y hacer el filtro real
           return coincideCategoria && coincideBusqueda;
         }).toList() ??
         [];
@@ -48,7 +47,7 @@ class _CategoriaFiltradaViewState extends State<CategoriaFiltradaView> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 🔴 BUSCADOR FUNCIONAL
+          // BUSCADOR FUNCIONAL
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
@@ -84,7 +83,9 @@ class _CategoriaFiltradaViewState extends State<CategoriaFiltradaView> {
 
           Expanded(
             child: menuState.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryBrown))
                 : platillosFiltrados.isEmpty
                     ? const Center(child: Text('No se encontraron platillos.'))
                     : ListView.builder(
@@ -94,10 +95,11 @@ class _CategoriaFiltradaViewState extends State<CategoriaFiltradaView> {
                           final platillo = platillosFiltrados[index];
                           return GestureDetector(
                             onTap: () {
+                              // 🔴 CORRECCIÓN AQUÍ: Llamamos a PlatilloDetalleView (el Premium)
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => DetallePlatilloView(
+                                      builder: (context) => PlatilloDetalleView(
                                           platillo: platillo)));
                             },
                             child: Container(
@@ -114,11 +116,15 @@ class _CategoriaFiltradaViewState extends State<CategoriaFiltradaView> {
                                   SizedBox(
                                     width: 80,
                                     height: 80,
-                                    child: CachedNetworkImage(
-                                      imageUrl: platillo.imagenUrl,
-                                      fit: BoxFit.cover,
-                                      errorWidget: (c, u, e) =>
-                                          const Icon(Icons.broken_image),
+                                    child: Hero(
+                                      tag: platillo
+                                          .id, // Animación Hero para el toque premium
+                                      child: CachedNetworkImage(
+                                        imageUrl: platillo.imagenUrl,
+                                        fit: BoxFit.cover,
+                                        errorWidget: (c, u, e) =>
+                                            const Icon(Icons.broken_image),
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 16),

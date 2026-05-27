@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // 🔴 IMPORTANTE PARA RESTRICCIONES
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -82,7 +83,9 @@ class DireccionesView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _crearInput(aliasCtrl, 'Alias (Ej: Casa)', Icons.bookmark_border),
+              // 🔴 RESTRICCIÓN: Límite de 20 caracteres para el Alias
+              _crearInput(aliasCtrl, 'Alias (Ej: Casa)', Icons.bookmark_border,
+                  formatters: [LengthLimitingTextInputFormatter(20)]),
               const SizedBox(height: 10),
               _crearInput(
                   calleCtrl, 'Calle y Número', Icons.location_on_outlined),
@@ -92,9 +95,15 @@ class DireccionesView extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                      child: _crearInput(
-                          cpCtrl, 'C.P.', Icons.markunread_mailbox_outlined,
-                          isNumber: true)),
+                    // 🔴 RESTRICCIÓN: Solo números y exactamente 5 dígitos
+                    child: _crearInput(
+                        cpCtrl, 'C.P.', Icons.markunread_mailbox_outlined,
+                        isNumber: true,
+                        formatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(5),
+                        ]),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -113,7 +122,14 @@ class DireccionesView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
-              if (aliasCtrl.text.isEmpty || calleCtrl.text.isEmpty) {
+              // 🔴 VALIDACIÓN ESTRICTA
+              if (aliasCtrl.text.isEmpty ||
+                  calleCtrl.text.isEmpty ||
+                  cpCtrl.text.length < 5) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Revisa tus datos. El C.P. debe tener 5 dígitos.'),
+                    backgroundColor: AppColors.errorRed));
                 return;
               }
               final d = Direccion(
@@ -124,6 +140,7 @@ class DireccionesView extends StatelessWidget {
                   codigoPostal: cpCtrl.text,
                   indicaciones: refCtrl.text);
               await context.read<PerfilProvider>().agregarDireccion(userId, d);
+
               if (!context.mounted) {
                 return;
               }
@@ -136,13 +153,17 @@ class DireccionesView extends StatelessWidget {
     );
   }
 
+  // 🔴 METODO ACTUALIZADO PARA ACEPTAR FORMATTERS
   Widget _crearInput(
       TextEditingController controller, String hint, IconData icon,
-      {bool isNumber = false, bool isPassword = false}) {
+      {bool isNumber = false,
+      bool isPassword = false,
+      List<TextInputFormatter>? formatters}) {
     return TextFormField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       obscureText: isPassword,
+      inputFormatters: formatters, // Aquí se aplican las reglas
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon, color: AppColors.primaryBrown, size: 20),

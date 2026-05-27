@@ -50,27 +50,39 @@ class CarritoProvider extends ChangeNotifier {
   }
 
   // 🔴 NUEVO MÉTODO: Guarda la orden en Firebase
+  // Reemplaza esta parte dentro del archivo `lib/providers/carrito_provider.dart`
   Future<void> procesarPago(String clienteId) async {
     if (_items.isEmpty) return;
 
-    // Usamos batch para que si falla algo, no se guarde nada a medias
     final batch = _db.batch();
-
-    // 1. Crear el documento de la Orden Principal
     final ordenRef = _db.collection('orden').doc();
+
+    // Sumamos el costo de envío al total
+    double costoEnvio = 35.0;
+    double totalConEnvio = total + costoEnvio;
+
+    // 🔴 AQUÍ GUARDAMOS EL ARREGLO DE ITEMS PARA EL HISTORIAL RÁPIDO
     batch.set(ordenRef, {
       'id': ordenRef.id,
       'cliente_id': clienteId,
-      'empleado_id': 'app_movil', // Identificador de origen
+      'empleado_id': 'app_movil',
       'mesa_id': 'para_llevar',
       'fecha_hora': FieldValue.serverTimestamp(),
-      'estado': 'pendiente', // Listo para que la cocina lo vea
+      'estado': 'pendiente',
       'subtotal': total,
       'impuesto': 0,
-      'total': total,
+      'total': totalConEnvio, // Total real pagado
+      // ESTE ES EL CAMBIO CLAVE:
+      'items': _items
+          .map((item) => {
+                'nombre_platillo': item.platillo.nombre,
+                'cantidad': item.cantidad,
+                'subtotal': item.subtotal,
+              })
+          .toList(),
     });
 
-    // 2. Crear los Detalles de la Orden como subcolección
+    // Mantenemos tu subcolección para la cocina/admin
     for (var item in _items) {
       final detalleRef = ordenRef.collection('detalle_orden').doc();
       batch.set(detalleRef, {
@@ -84,18 +96,18 @@ class CarritoProvider extends ChangeNotifier {
       });
     }
 
-    // 3. Crear el documento del Pago
     final pagoRef = _db.collection('pago').doc();
     batch.set(pagoRef, {
       'id': pagoRef.id,
       'orden_id': ordenRef.id,
       'metodo_pago': 'tarjeta',
-      'monto': total,
-      'referencia': '1234589', // Simulación del código de autorización
+      'monto': totalConEnvio, // Se cobra el total con envío
+      'referencia':
+          'APP-${DateTime.now().millisecondsSinceEpoch}', // Referencia dinámica
       'fecha_hora': FieldValue.serverTimestamp(),
     });
 
-    // Subir todo a la nube
     await batch.commit();
+    limpiarCarrito(); // No olvides limpiar el carrito después de pagar!
   }
 }
