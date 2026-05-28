@@ -1,4 +1,4 @@
-# proyectoherlinda
+# PROYECTO FINAL
 
 ## Infografias
  Fase 1:
