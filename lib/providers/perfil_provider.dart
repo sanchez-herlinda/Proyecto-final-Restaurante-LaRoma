@@ -64,6 +64,35 @@ class PerfilProvider extends ChangeNotifier {
         .add(tarjeta.toJson());
     // Igual aquí, la magia de Firebase en tiempo real hace el trabajo.
   }
+  // 🔴 NUEVAS FUNCIONES PARA ACTUALIZAR Y ELIMINAR
+
+  Future<void> actualizarDireccion(
+      String userId, String direccionId, Direccion direccionActualizada) async {
+    await FirebaseFirestore.instance
+        .collection('empleado')
+        .doc(userId)
+        .collection('direcciones')
+        .doc(direccionId) // Apuntamos al documento exacto
+        .update(direccionActualizada.toJson());
+  }
+
+  Future<void> eliminarDireccion(String userId, String direccionId) async {
+    await FirebaseFirestore.instance
+        .collection('empleado')
+        .doc(userId)
+        .collection('direcciones')
+        .doc(direccionId)
+        .delete();
+  }
+
+  Future<void> eliminarTarjeta(String userId, String tarjetaId) async {
+    await FirebaseFirestore.instance
+        .collection('empleado')
+        .doc(userId)
+        .collection('tarjetas')
+        .doc(tarjetaId)
+        .delete();
+  }
 
   // 🔴 ESTA FUNCIÓN SE DEBE LLAMAR AL CERRAR SESIÓN (Logout)
   void limpiarPerfil() {

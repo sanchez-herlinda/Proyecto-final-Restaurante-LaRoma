@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 🔴 IMPORTANTE PARA RESTRICCIONES
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -44,6 +44,26 @@ class DireccionesView extends StatelessWidget {
                   isThreeLine: dir.indicaciones.isNotEmpty,
                   leading: const Icon(Icons.location_on,
                       color: AppColors.primaryBrown),
+
+                  // 🔴 AQUÍ AGREGAMOS LOS BOTONES DE EDITAR Y ELIMINAR
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon:
+                            const Icon(Icons.edit_outlined, color: Colors.blue),
+                        onPressed: () => _mostrarDialogoDireccion(
+                            context, userId,
+                            direccionExistente: dir),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.errorRed),
+                        onPressed: () => _confirmarEliminacion(
+                            context, userId, dir.id, 'dirección'),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -57,7 +77,7 @@ class DireccionesView extends StatelessWidget {
             backgroundColor: AppColors.primaryBrown,
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
-          onPressed: () => _mostrarDialogoAgregarDireccion(context, userId),
+          onPressed: () => _mostrarDialogoDireccion(context, userId),
           child: const Text('Agregar nueva dirección',
               style: TextStyle(fontSize: 16)),
         ),
@@ -65,25 +85,34 @@ class DireccionesView extends StatelessWidget {
     );
   }
 
-  void _mostrarDialogoAgregarDireccion(BuildContext context, String userId) {
-    final aliasCtrl = TextEditingController();
-    final calleCtrl = TextEditingController();
-    final colCtrl = TextEditingController();
-    final cpCtrl = TextEditingController();
-    final refCtrl = TextEditingController();
+  // 🔴 ESTE DIÁLOGO AHORA SIRVE PARA CREAR Y EDITAR
+  void _mostrarDialogoDireccion(BuildContext context, String userId,
+      {Direccion? direccionExistente}) {
+    final isEditando = direccionExistente != null;
+
+    // Si estamos editando, pre-llenamos los controladores con los datos actuales
+    final aliasCtrl =
+        TextEditingController(text: isEditando ? direccionExistente.alias : '');
+    final calleCtrl = TextEditingController(
+        text: isEditando ? direccionExistente.calleYNumero : '');
+    final colCtrl = TextEditingController(
+        text: isEditando ? direccionExistente.colonia : '');
+    final cpCtrl = TextEditingController(
+        text: isEditando ? direccionExistente.codigoPostal : '');
+    final refCtrl = TextEditingController(
+        text: isEditando ? direccionExistente.indicaciones : '');
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Nueva Dirección',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(isEditando ? 'Editar Dirección' : 'Nueva Dirección',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 🔴 RESTRICCIÓN: Límite de 20 caracteres para el Alias
               _crearInput(aliasCtrl, 'Alias (Ej: Casa)', Icons.bookmark_border,
                   formatters: [LengthLimitingTextInputFormatter(20)]),
               const SizedBox(height: 10),
@@ -95,7 +124,6 @@ class DireccionesView extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    // 🔴 RESTRICCIÓN: Solo números y exactamente 5 dígitos
                     child: _crearInput(
                         cpCtrl, 'C.P.', Icons.markunread_mailbox_outlined,
                         isNumber: true,
@@ -122,7 +150,6 @@ class DireccionesView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
-              // 🔴 VALIDACIÓN ESTRICTA
               if (aliasCtrl.text.isEmpty ||
                   calleCtrl.text.isEmpty ||
                   cpCtrl.text.length < 5) {
@@ -132,28 +159,69 @@ class DireccionesView extends StatelessWidget {
                     backgroundColor: AppColors.errorRed));
                 return;
               }
+
               final d = Direccion(
-                  id: '',
+                  id: isEditando
+                      ? direccionExistente.id
+                      : '', // Mantenemos el ID si estamos editando
                   alias: aliasCtrl.text,
                   calleYNumero: calleCtrl.text,
                   colonia: colCtrl.text,
                   codigoPostal: cpCtrl.text,
                   indicaciones: refCtrl.text);
-              await context.read<PerfilProvider>().agregarDireccion(userId, d);
 
-              if (!context.mounted) {
-                return;
+              if (isEditando) {
+                await context
+                    .read<PerfilProvider>()
+                    .actualizarDireccion(userId, direccionExistente.id, d);
+              } else {
+                await context
+                    .read<PerfilProvider>()
+                    .agregarDireccion(userId, d);
               }
+
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
-            child: const Text('Guardar'),
+            child: Text(isEditando ? 'Actualizar' : 'Guardar'),
           )
         ],
       ),
     );
   }
 
-  // 🔴 METODO ACTUALIZADO PARA ACEPTAR FORMATTERS
+  // 🔴 DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR
+  void _confirmarEliminacion(
+      BuildContext context, String userId, String id, String tipo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Estás seguro de que deseas eliminar esta $tipo?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.textDark)),
+          ),
+          ElevatedButton(
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
+            onPressed: () async {
+              await context
+                  .read<PerfilProvider>()
+                  .eliminarDireccion(userId, id);
+              if (!context.mounted) return;
+              Navigator.pop(context);
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _crearInput(
       TextEditingController controller, String hint, IconData icon,
       {bool isNumber = false,
@@ -163,7 +231,7 @@ class DireccionesView extends StatelessWidget {
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       obscureText: isPassword,
-      inputFormatters: formatters, // Aquí se aplican las reglas
+      inputFormatters: formatters,
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon, color: AppColors.primaryBrown, size: 20),

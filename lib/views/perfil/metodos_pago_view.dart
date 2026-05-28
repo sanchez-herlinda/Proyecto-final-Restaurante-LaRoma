@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // 🔴 IMPORTANTE PARA RESTRICCIONES
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
@@ -42,9 +42,14 @@ class MetodosPagoView extends StatelessWidget {
                   subtitle: Text(card.nombreTitular),
                   leading: const Icon(Icons.credit_card,
                       color: AppColors.primaryBrown),
-                  trailing: Text(card.tipo.toUpperCase(),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.blue)),
+
+                  // 🔴 AQUÍ AGREGAMOS EL BOTÓN DE ELIMINAR TARJETA
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppColors.errorRed),
+                    onPressed: () =>
+                        _confirmarEliminacion(context, userId, card.id),
+                  ),
                 ),
               );
             },
@@ -66,6 +71,36 @@ class MetodosPagoView extends StatelessWidget {
     );
   }
 
+  // 🔴 DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR TARJETA
+  void _confirmarEliminacion(BuildContext context, String userId, String id) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Tarjeta',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+            '¿Estás seguro de que deseas eliminar esta tarjeta de crédito/débito?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.textDark)),
+          ),
+          ElevatedButton(
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
+            onPressed: () async {
+              await context.read<PerfilProvider>().eliminarTarjeta(userId, id);
+              if (!context.mounted) return;
+              Navigator.pop(context);
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _mostrarDialogoAgregarTarjeta(BuildContext context, String userId) {
     final titularCtrl = TextEditingController();
     final numeroCtrl = TextEditingController();
@@ -83,12 +118,10 @@ class MetodosPagoView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 🔴 RESTRICCIÓN: Máximo 40 caracteres para titular
               _crearInput(
                   titularCtrl, 'Nombre del Titular', Icons.person_outline,
                   formatters: [LengthLimitingTextInputFormatter(40)]),
               const SizedBox(height: 10),
-              // 🔴 RESTRICCIÓN: Solo números y exactamente 16 dígitos
               _crearInput(numeroCtrl, 'Número de Tarjeta', Icons.credit_card,
                   isNumber: true,
                   formatters: [
@@ -99,7 +132,6 @@ class MetodosPagoView extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                      // 🔴 RESTRICCIÓN: Solo números y exactamente 4 dígitos (MMAA)
                       child: _crearInput(vencCtrl, 'MMAA', Icons.calendar_today,
                           isNumber: true,
                           formatters: [
@@ -108,7 +140,6 @@ class MetodosPagoView extends StatelessWidget {
                       ])),
                   const SizedBox(width: 10),
                   Expanded(
-                      // 🔴 RESTRICCIÓN: Solo números y máximo 4 dígitos para CVC
                       child: _crearInput(cvcCtrl, 'CVC', Icons.lock_outline,
                           isNumber: true,
                           isPassword: true,
@@ -132,7 +163,6 @@ class MetodosPagoView extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
-              // 🔴 VALIDACIÓN ESTRICTA DE LONGITUDES
               if (titularCtrl.text.isEmpty ||
                   numeroCtrl.text.length < 15 ||
                   vencCtrl.text.length < 4 ||
@@ -150,16 +180,15 @@ class MetodosPagoView extends StatelessWidget {
                       '**** **** **** ${n.length >= 4 ? n.substring(n.length - 4) : n}',
                   numeroCompleto: n,
                   fechaVencimiento:
-                      '${vencCtrl.text.substring(0, 2)}/${vencCtrl.text.substring(2)}', // Formato a MM/AA
+                      '${vencCtrl.text.substring(0, 2)}/${vencCtrl.text.substring(2)}',
                   cvc: cvcCtrl.text,
                   tipo: n.startsWith('4')
                       ? 'Visa'
                       : (n.startsWith('5') ? 'Mastercard' : 'Amex'));
+
               await context.read<PerfilProvider>().agregarTarjeta(userId, c);
 
-              if (!context.mounted) {
-                return;
-              }
+              if (!context.mounted) return;
               Navigator.pop(context);
             },
             child: const Text('Guardar'),
@@ -169,7 +198,6 @@ class MetodosPagoView extends StatelessWidget {
     );
   }
 
-  // 🔴 METODO ACTUALIZADO PARA ACEPTAR FORMATTERS
   Widget _crearInput(
       TextEditingController controller, String hint, IconData icon,
       {bool isNumber = false,
