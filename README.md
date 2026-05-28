@@ -109,5 +109,4 @@ Fase 2:
 <img width="947" height="823" alt="image" src="https://github.com/user-attachments/assets/a5a1da77-3d80-4253-a470-da0684d969bd" />
 
 ## Imagenes
-
-https://raw.githubusercontent.com/sanchez-herlinda/Imagenes_para_Flutter_6J-11-Feb-2026/refs/heads/main/b.png
+Imagenes sacadas de un repositorio pasado: 
